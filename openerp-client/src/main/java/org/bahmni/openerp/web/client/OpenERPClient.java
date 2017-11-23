@@ -15,13 +15,14 @@ import org.springframework.stereotype.Service;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.List;
 import java.util.Vector;
 
 @Service
 @Lazy
 public class OpenERPClient {
-    public static final String XML_RPC_OBJECT_ENDPOINT = "/xmlrpc/object";
-    public static final String XML_RPC_COMMON_ENDPOINT = "/xmlrpc/common";
+    public static final String XML_RPC_OBJECT_ENDPOINT = "/xmlrpc/2/object";
+    public static final String XML_RPC_COMMON_ENDPOINT = "/xmlrpc/2/common";
 
     private final int connectionTimeoutInMilliseconds;
     private final int replyTimeoutInMilliseconds;
@@ -58,7 +59,7 @@ public class OpenERPClient {
         }
     }
 
-    public Object search(String resource, Vector params) {
+    public Object search(String resource, List<List<List<?>>> params) {
         return execute(resource, "search", params);
     }
 
@@ -94,12 +95,12 @@ public class OpenERPClient {
         return execute(resource, "unlink", params);
     }
 
-    public Object execute(String resource, String operation, Vector params) {
+    public Object execute(String resource, String operation, List params) {
         login();
         Object args[] = {database, (Integer) id, password, resource, operation, params};
 
         try {
-            return xmlRpcClient(XML_RPC_OBJECT_ENDPOINT).execute("execute", args);
+            return xmlRpcClient(XML_RPC_OBJECT_ENDPOINT).execute("execute_kw", args);
         } catch (XmlRpcException e) {
             throw new OpenERPException(e);
         }

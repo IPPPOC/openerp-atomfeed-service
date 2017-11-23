@@ -1,24 +1,22 @@
 package org.bahmni.feed.openerp.worker;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.bahmni.feed.openerp.ObjectMapperRepository;
 import org.bahmni.feed.openerp.OpenMRSPatientMapper;
 import org.bahmni.feed.openerp.client.OpenMRSWebClient;
 import org.bahmni.feed.openerp.domain.OpenMRSPatient;
 import org.bahmni.feed.openerp.domain.OpenMRSPatientIdentifier;
-import org.bahmni.feed.openerp.domain.OpenMRSPerson;
 import org.bahmni.feed.openerp.domain.OpenMRSPersonAddress;
 import org.bahmni.openerp.web.client.OpenERPClient;
-import org.bahmni.openerp.web.request.OpenERPRequest;
 import org.bahmni.openerp.web.request.builder.Parameter;
 import org.ict4h.atomfeed.client.domain.Event;
 import org.ict4h.atomfeed.client.service.EventWorker;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+
+import static java.util.Arrays.asList;
 
 public class OpenERPCustomerServiceEventWorker implements EventWorker {
     OpenERPClient openERPClient;
@@ -38,63 +36,58 @@ public class OpenERPCustomerServiceEventWorker implements EventWorker {
     @Override
     public void process(Event event) {
         try {
-            openERPClient.execute(mapRequest(event));
+            Object[] customer = (Object[]) openERPClient.search("res.partner", getSearchParams(event));
+            if (customer.length > 0) {
+                openERPClient.execute("res.partner", "write", getWriteParams(event, customer));
+            } else {
+                openERPClient.execute("res.partner", "create", getParameters(event));
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private List<List<List<?>>> getSearchParams(Event event) throws IOException {
+        List<HashMap> parameters = getParameters(event);
+
+        return asList(asList(
+                asList("ref", "=", parameters.get(0).get("ref")),
+                asList("customer", "=", true)));
+    }
+
+
+    private List<HashMap> getWriteParams(Event event, Object[] customer) throws IOException {
+        List writeParams = new ArrayList<>();
+        List<HashMap> params = getParameters(event);
+
+        writeParams.add(customer[0]);
+        writeParams.add(params.get(0));
+        return writeParams;
     }
 
     @Override
     public void cleanUp(Event event) {
     }
 
-    private OpenERPRequest mapRequest(Event event) throws IOException {
-        return new OpenERPRequest("atom.event.worker", "process_event", getParameters(event));
-    }
 
-    private List<Parameter> getParameters(Event event) throws IOException {
+    private List<HashMap> getParameters(Event event) throws IOException {
         String content = event.getContent();
         String patientJSON = webClient.get(URI.create(urlPrefix + content));
 
         OpenMRSPatientMapper openMRSPatientMapper = new OpenMRSPatientMapper(ObjectMapperRepository.objectMapper);
         OpenMRSPatient openMRSPatient = openMRSPatientMapper.map(patientJSON);
 
-        return mapParameters(openMRSPatient, event.getId(), event.getFeedUri(), event.getFeedUri() == null);
+        return mapParameters(openMRSPatient);
     }
 
-    private List<Parameter> mapParameters(OpenMRSPatient openMRSPatient, String eventId, String feedUri, boolean isFailedEvent) {
-        List<Parameter> parameters = new ArrayList<Parameter>();
-        parameters.add(createParameter("name", openMRSPatient.getName(), "string"));
-        parameters.add(createParameter("local_name", openMRSPatient.getLocalName(), "string"));
-        parameters.add(createParameter("ref", getPrimaryIdentifier(openMRSPatient).getIdentifier(), "string"));
-        parameters.add(createParameter("uuid", openMRSPatient.getUuid(), "string"));
-        String village = identifyVillage(openMRSPatient);
-        if (!StringUtils.isBlank(village)) {
-            parameters.add(createParameter("village", village, "string"));
-        }
-        OpenMRSPerson person = openMRSPatient.getPerson();
-        if(person.getAttributes() != null){
-            parameters.add(createParameter("attributes", person.getAttributes().toJsonString(), "string"));
-        }
-        else{
-            parameters.add(createParameter("attributes", null, "string"));
-        }
-        if(person.getPreferredAddress() != null){
-            parameters.add(createParameter("preferredAddress", person.getPreferredAddress().toJsonString(), "string"));
-        }
-        else{
-            parameters.add(createParameter("preferredAddress", "{}", "string"));
-        }
-
-        parameters.add(createParameter("category", "create.customer", "string"));
-        if((feedUrl != null && feedUrl.contains("$param.value")) || (feedUri != null && feedUri.contains("$param.value")))
-            throw new RuntimeException("Junk values in the feedUrl:$param.value");
-        parameters.add(createParameter("feed_uri", feedUrl, "string"));
-        parameters.add(createParameter("last_read_entry_id", eventId, "string"));
-        parameters.add(createParameter("feed_uri_for_last_read_entry", feedUri, "string"));
-        if (isFailedEvent)
-            parameters.add(createParameter("is_failed_event", "1", "boolean"));
-        return parameters;
+    private List<HashMap> mapParameters(OpenMRSPatient openMRSPatient) {
+        List<HashMap> mapList = new ArrayList<>();
+        HashMap<String, String> parameters = new HashMap<>();
+        parameters.put("name", openMRSPatient.getName());
+        parameters.put("ref", getPrimaryIdentifier(openMRSPatient).getIdentifier());
+        parameters.put("city", identifyVillage(openMRSPatient));
+        mapList.add(parameters);
+        return mapList;
     }
 
     private OpenMRSPatientIdentifier getPrimaryIdentifier(OpenMRSPatient patient) {
