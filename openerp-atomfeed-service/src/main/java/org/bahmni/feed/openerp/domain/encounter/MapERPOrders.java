@@ -30,13 +30,13 @@ public class MapERPOrders extends OpenMRSEncounterEvent {
         parameters.add(createParameter("feed_uri", feedURI, "string"));
         parameters.add(createParameter("last_read_entry_id", eventId, "string"));
         parameters.add(createParameter("feed_uri_for_last_read_entry", feedURIForLastReadEntry, "string"));
-        parameters.add(createParameter("orders", mapOpenERPOrders(), "string"));
+        parameters.add(createParameter("orders", ObjectMapperRepository.objectMapper.writeValueAsString(mapOpenERPOrders()), "string"));
         parameters.add(createParameter("locationName", openMRSEncounter.getLocationName(), "string"));
         return parameters;
     }
 
 
-    private String mapOpenERPOrders() throws IOException {
+    public OpenERPOrders mapOpenERPOrders() throws IOException {
         OpenERPOrders openERPOrders = new OpenERPOrders(openMRSEncounter.getEncounterUuid());
         List<Provider> providers = openMRSEncounter.getProviders();
 
@@ -94,7 +94,7 @@ public class MapERPOrders extends OpenMRSEncounterEvent {
             openERPOrders.add(openERPOrder);
         }
 
-        return ObjectMapperRepository.objectMapper.writeValueAsString(openERPOrders);
+        return openERPOrders;
     }
 
     private String getVisitType() {

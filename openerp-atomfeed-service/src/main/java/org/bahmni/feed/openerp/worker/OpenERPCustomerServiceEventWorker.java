@@ -101,7 +101,8 @@ public class OpenERPCustomerServiceEventWorker implements EventWorker {
 
     private String identifyVillage(OpenMRSPatient openMRSPatient) {
         OpenMRSPersonAddress preferredAddress = openMRSPatient.getPerson().getPreferredAddress();
-        return (preferredAddress != null) ?  preferredAddress.getCityVillage() : null;
+        String village = (preferredAddress != null) ?  preferredAddress.getCityVillage() : "";
+        return (village != null) ?  village : "";
     }
 
 
