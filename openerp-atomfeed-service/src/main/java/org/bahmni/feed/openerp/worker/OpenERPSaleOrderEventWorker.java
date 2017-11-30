@@ -62,6 +62,7 @@ public class OpenERPSaleOrderEventWorker implements EventWorker {
                     Object saleOrderID = createSaleOrder(customer, parameters);
                     createSaleOrderLines(saleOrderID, openERPOrders.getOpenERPOrders());
                 } else {
+                    updateSaleOrder(saleOrder, parameters);
                     List<OpenERPOrder> newOpenERPOrders = updateExistingSaleOrderLines((Integer) saleOrder[0]);
                     createSaleOrderLines(saleOrder[0], newOpenERPOrders);
                 }
@@ -139,9 +140,34 @@ public class OpenERPSaleOrderEventWorker implements EventWorker {
         HashMap saleOrderMap= new HashMap();
         saleOrderMap.put("partner_id", customer[0]);
         saleOrderMap.put("client_order_ref", parameters.get(2).getValue());
+        saleOrderMap.put("note", getNotes());
         saleOrder.add(saleOrderMap);
 
         return openERPClient.execute("sale.order", "create", saleOrder);
+    }
+
+    private void updateSaleOrder(Object[] saleOrderId, List<Parameter> parameters) {
+        List saleOrder = new ArrayList<>();
+        HashMap saleOrderMap= new HashMap();
+        saleOrderMap.put("client_order_ref", parameters.get(2).getValue());
+        saleOrderMap.put("note", getNotes());
+
+        saleOrder.add(saleOrderId[0]);
+        saleOrder.add(saleOrderMap);
+
+        openERPClient.execute("sale.order", "write", saleOrder);
+    }
+
+    private String getNotes() {
+        String notes = "";
+        for(OpenERPOrder order: openERPOrders.getOpenERPOrders()){
+            if (order.getNotes() != null && order.getNotes().length() != 0){
+                String note = order.getProductName() + ": " + order.getNotes() + ".";
+                note = String.format("%-138s", note);
+                notes += note;
+            }
+        }
+        return notes;
     }
 
     @Override

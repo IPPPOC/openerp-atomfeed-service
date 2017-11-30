@@ -18,6 +18,7 @@ public class OpenERPOrder {
     private String providerName;
     private String dispensed;
     private String conceptName;
+    private String notes;
 
 
     public String getEncounterId() {
@@ -148,5 +149,13 @@ public class OpenERPOrder {
     public String getConceptName() { return conceptName; }
 
     public void setConceptName(String conceptName) { this.conceptName = conceptName; }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
+    }
 }
 
